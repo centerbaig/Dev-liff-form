@@ -91,7 +91,7 @@
   </div>
 
   <div class="card">
-    <label>ชื่อโครงการ/หมู่บ้าน (ไม่บังคับ)</label>
+    <label>ชื่อโครงการ (ไม่บังคับ)</label>
     <input id="projectName" placeholder="เช่น โครงการ ABC" />
 
     <label>บ้านเลขที่ (ไม่บังคับ)</label>
@@ -101,6 +101,10 @@
     <select id="assetType">
       <option value="">กรุณาระบุ</option>
       <option value="บ้านเดี่ยว">บ้านเดี่ยว</option>
+      <option value="ทาวน์เฮ้า/ทาวน์โฮม">ทาวน์เฮ้า/ทาวน์โฮม</option>
+      <option value="บ้านแฝด">บ้านแฝด</option>
+      <option value="ที่ดิน">ที่ดิน</option>
+      <option value="อาคารพาณิชย์/ตึกแถว">อาคารพาณิชย์/ตึกแถว</option>
     </select>
 
     <div class="row">
@@ -159,8 +163,8 @@
   </div>
 
 <script>
-  const LIFF_ID = "2009207164-DXVXIiBg";
-  const BACKEND_URL = "https://script.google.com/macros/s/AKfycbxgY_zROcN1VQ1MnqVAV15El_tBN_SsIkOhvAeEEkSVkfLSvndsmlt1uOznF_Bslp7j/exec";
+  const LIFF_ID = "2009152302-xTk3ZrjV";
+  const BACKEND_URL = "https://script.google.com/macros/s/AKfycby8gbWx0N_DAy_FO4sPyiXREl08LeqJSWBNxazJZupssyYC-JhRC3qzDn8I-t_jMb26/exec";
   const PROGRESS_TEXT = "กำลังส่งข้อมูลไปยังระบบ...";
 
   let profile = null;
