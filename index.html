@@ -6,6 +6,7 @@
   <title>LIFF Form</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://unpkg.com/heic2any/dist/heic2any.min.js"></script>
+
   <style>
     *{box-sizing:border-box}
     body{
@@ -80,7 +81,7 @@
 </head>
 
 <body>
-  <h2>DEV3.38ส่งข้อมูลหน้างาน</h2>
+  <h2>DEV 3.41ส่งข้อมูลหน้างาน</h2>
   <div class="small">
     ระบุประเภททรัพย์ &gt; แนบรูป (หน้าบ้าน + ป้ายประกาศ) &gt; ดึงพิกัด &gt; แล้วกดส่ง
   </div>
@@ -223,27 +224,6 @@
   function hideProgress() {
     document.getElementById("progressModal").style.display = "none";
   }
-  function isHeicFile(file){
-  if (!file) return false;
-  const t = (file.type || "").toLowerCase();
-  const n = (file.name || "").toLowerCase();
-  return t.includes("heic") || t.includes("heif") || n.endsWith(".heic") || n.endsWith(".heif");
-}
-
-async function convertHeicToJpegFile(file){
-  // ต้องมี heic2any
-  if (typeof heic2any === "undefined") throw new Error("ไม่พบไลบรารีแปลง HEIC (heic2any)");
-
-  const out = await heic2any({
-    blob: file,
-    toType: "image/jpeg",
-    quality: 0.85
-  });
-
-  const blob = Array.isArray(out) ? out[0] : out;
-  const newName = (file.name || "image").replace(/\.(heic|heif)$/i, ".jpg");
-  return new File([blob], newName, { type: "image/jpeg" });
-}
 
   // ---------- Preview ----------
   function bindPreview(inputId, imgId) {
@@ -283,6 +263,27 @@ async function convertHeicToJpegFile(file){
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
   }
+  function isHeicFile(file){
+  if (!file) return false;
+  const t = (file.type || "").toLowerCase();
+  const n = (file.name || "").toLowerCase();
+  return t.includes("heic") || t.includes("heif") || n.endsWith(".heic") || n.endsWith(".heif");
+}
+
+async function convertHeicToJpegFile(file){
+  // ต้องมี heic2any
+  if (typeof heic2any === "undefined") throw new Error("ไม่พบไลบรารีแปลง HEIC (heic2any)");
+
+  const out = await heic2any({
+    blob: file,
+    toType: "image/jpeg",
+    quality: 0.85
+  });
+
+  const blob = Array.isArray(out) ? out[0] : out;
+  const newName = (file.name || "image").replace(/\.(heic|heif)$/i, ".jpg");
+  return new File([blob], newName, { type: "image/jpeg" });
+}
 
   // ---------- Image resize/compress ----------
 async function resizeImageToDataUrl(file, maxSide = 960, quality = 0.70) {
