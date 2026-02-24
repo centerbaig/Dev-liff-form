@@ -40,7 +40,7 @@
       box-shadow:0 20px 60px rgba(0,0,0,.25);
     }
     .modal h3{margin:0 0 6px;font-size:18px}
-    .modal p{margin:0 0 12px;color:#444}
+    .modal p{margin:0 0 12px;color:#444;line-height:1.55}
     .modal .actions{display:flex;gap:10px}
     .modal .actions button{width:100%}
 
@@ -80,7 +80,7 @@
 </head>
 
 <body>
-  <h2>DEV11.37ส่งข้อมูลหน้างาน</h2>
+  <h2>ส่งข้อมูลหน้างาน</h2>
   <div class="small">
     ระบุประเภททรัพย์ &gt; แนบรูป (หน้าบ้าน + ป้ายประกาศ) &gt; ดึงพิกัด &gt; แล้วกดส่ง
   </div>
@@ -135,6 +135,20 @@
     <div id="result" class="small"></div>
   </div>
 
+  <!-- ✅ Announcement Popup (ประกาศจากบริษัท) -->
+  <div id="announceModal" class="modal-backdrop">
+    <div class="modal">
+      <h3>ประกาศจากทางบริษัท</h3>
+      <p id="announceMsg">
+        กรุณาถ่ายภาพให้ชัดเจน (ตัวหนังสือบนป้ายอ่านได้) และตรวจสอบ “ชื่อโครงการ/หมู่บ้าน” ก่อนกดส่งข้อมูลทุกครั้ง<br/>
+        หากไม่มีชื่อโครงการ/หมู่บ้าน ให้กรอกคำว่า “ไม่มี”
+      </p>
+      <div class="actions">
+        <button class="btn" type="button" onclick="closeAnnouncement()">รับทราบ</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Success Popup -->
   <div id="successModal" class="modal-backdrop">
     <div class="modal">
@@ -164,6 +178,17 @@
   const PROGRESS_TEXT = "กำลังส่งข้อมูลไปยังระบบ...";
 
   let profile = null;
+
+  // ✅ Announcement helpers
+  function showAnnouncement() {
+    // แสดงทุกครั้งที่เปิดจาก Rich Menu (ถ้าอยากให้แสดงครั้งเดียวต่อ session ให้เปิดบรรทัด sessionStorage ด้านล่าง)
+    // if (sessionStorage.getItem("announce_seen") === "1") return;
+    document.getElementById("announceModal").style.display = "flex";
+  }
+  function closeAnnouncement() {
+    document.getElementById("announceModal").style.display = "none";
+    // sessionStorage.setItem("announce_seen", "1");
+  }
 
   // ---------- UX helpers ----------
   function focusTo(el, msg) {
@@ -276,7 +301,6 @@
       const img2El = document.getElementById("img2"); // optional
       const img3El = document.getElementById("img3");
 
-      // ✅ ProjectName required
       const projectName = (projectEl.value || "").trim();
       if (!projectName) {
         btn.disabled = false;
@@ -304,10 +328,8 @@
 
       const f2 = img2El.files[0] || null;
 
-      // Progress popup
       showProgress(5);
 
-      // Resize พร้อมกัน
       showProgress(15);
       const pFront = resizeImageToDataUrl(f1, 960, 0.70);
       const pNotice = resizeImageToDataUrl(f3, 960, 0.70);
@@ -324,11 +346,10 @@
         { label: "notice_sign", dataUrl: d3 },
       ];
 
-      // 85% = เตรียม payload (ยังไม่ส่ง)
       showProgress(85);
 
       const payload = {
-        projectName, // ✅ ใช้ค่าที่ validate แล้ว
+        projectName,
         houseText: (document.getElementById("houseText").value || "").trim(),
         assetType: typeEl.value,
         latitude: Number(latEl.value),
@@ -338,16 +359,13 @@
         images
       };
 
-      // 90% = เริ่มส่งข้อมูลจริง
       showProgress(90);
 
-      // ⚠️ ไม่ใส่ headers เพื่อเลี่ยง CORS preflight (คงของเดิม)
       const res = await fetch(BACKEND_URL, {
         method: "POST",
         body: JSON.stringify(payload),
       });
 
-      // 95% = กำลังรอผล/อ่านผล
       showProgress(95);
 
       const json = await res.json();
@@ -407,6 +425,9 @@
       bindPreview("img1","p1");
       bindPreview("img2","p2");
       bindPreview("img3","p3");
+
+      // ✅ แสดงประกาศทันทีเมื่อเปิดจาก Rich Menu
+      showAnnouncement();
 
       getLocation();
 
