@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>LIFF Form</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
+  <script src="https://unpkg.com/heic2any/dist/heic2any.min.js"></script>
   <style>
     *{box-sizing:border-box}
     body{
@@ -223,6 +223,27 @@
   function hideProgress() {
     document.getElementById("progressModal").style.display = "none";
   }
+  function isHeicFile(file){
+  if (!file) return false;
+  const t = (file.type || "").toLowerCase();
+  const n = (file.name || "").toLowerCase();
+  return t.includes("heic") || t.includes("heif") || n.endsWith(".heic") || n.endsWith(".heif");
+}
+
+async function convertHeicToJpegFile(file){
+  // ต้องมี heic2any
+  if (typeof heic2any === "undefined") throw new Error("ไม่พบไลบรารีแปลง HEIC (heic2any)");
+
+  const out = await heic2any({
+    blob: file,
+    toType: "image/jpeg",
+    quality: 0.85
+  });
+
+  const blob = Array.isArray(out) ? out[0] : out;
+  const newName = (file.name || "image").replace(/\.(heic|heif)$/i, ".jpg");
+  return new File([blob], newName, { type: "image/jpeg" });
+}
 
   // ---------- Preview ----------
   function bindPreview(inputId, imgId) {
@@ -264,19 +285,25 @@
   }
 
   // ---------- Image resize/compress ----------
-  async function resizeImageToDataUrl(file, maxSide = 960, quality = 0.70) {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-    const nw = Math.round(bitmap.width * scale);
-    const nh = Math.round(bitmap.height * scale);
-
-    const canvas = document.createElement("canvas");
-    canvas.width = nw; canvas.height = nh;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(bitmap, 0, 0, nw, nh);
-
-    return canvas.toDataURL("image/jpeg", quality);
+async function resizeImageToDataUrl(file, maxSide = 960, quality = 0.70) {
+  // ✅ ถ้าเป็น HEIC/HEIF ให้แปลงเป็น JPG ก่อน
+  if (isHeicFile(file)) {
+    showProgress(20); // กันคนคิดว่าค้าง (ปรับเลขได้)
+    file = await convertHeicToJpegFile(file);
   }
+
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+  const nw = Math.round(bitmap.width * scale);
+  const nh = Math.round(bitmap.height * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = nw; canvas.height = nh;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bitmap, 0, 0, nw, nh);
+
+  return canvas.toDataURL("image/jpeg", quality);
+}
 
   // ---------- Submit ----------
   async function submitForm() {
