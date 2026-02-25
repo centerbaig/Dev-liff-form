@@ -45,7 +45,7 @@
     .modal .actions{display:flex;gap:10px}
     .modal .actions button{width:100%}
 
-    /* Progress Popup (Bottom Sheet Style) */
+    /* Progress Popup */
     .progress-backdrop{
       position:fixed; inset:0;
       background:rgba(0,0,0,.35);
@@ -69,12 +69,8 @@
       gap:10px;
       margin-bottom:10px;
     }
-    .progress-top .title{
-      font-size:14px;color:#111827;font-weight:700;
-    }
-    .progress-top .pct{
-      font-size:14px;color:#111827;font-weight:700;
-    }
+    .progress-top .title{font-size:14px;color:#111827;font-weight:700;}
+    .progress-top .pct{font-size:14px;color:#111827;font-weight:700;}
     progress{width:100%;height:14px}
     .progress-sub{margin-top:8px;font-size:13px;color:#555}
   </style>
@@ -132,6 +128,16 @@
     <input type="file" id="img2" accept="image/*" capture="environment" />
     <img id="p2" class="preview" />
 
+    <!-- ✅ เพิ่มใหม่ -->
+    <label>4) รูปเพิ่มเติม 1 (ไม่บังคับ)</label>
+    <input type="file" id="img4" accept="image/*" capture="environment" />
+    <img id="p4" class="preview" />
+
+    <!-- ✅ เพิ่มใหม่ -->
+    <label>5) รูปเพิ่มเติม 2 (ไม่บังคับ)</label>
+    <input type="file" id="img5" accept="image/*" capture="environment" />
+    <img id="p5" class="preview" />
+
     <button class="btn" id="submitBtn" type="button" onclick="submitForm()">ส่งข้อมูล</button>
     <div id="result" class="small"></div>
   </div>
@@ -179,18 +185,13 @@
 
   let profile = null;
 
-  // ✅ Announcement helpers
   function showAnnouncement() {
-    // แสดงทุกครั้งที่เปิดจาก Rich Menu (ถ้าอยากให้แสดงครั้งเดียวต่อ session ให้เปิดบรรทัด sessionStorage ด้านล่าง)
-    // if (sessionStorage.getItem("announce_seen") === "1") return;
     document.getElementById("announceModal").style.display = "flex";
   }
   function closeAnnouncement() {
     document.getElementById("announceModal").style.display = "none";
-    // sessionStorage.setItem("announce_seen", "1");
   }
 
-  // ---------- UX helpers ----------
   function focusTo(el, msg) {
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -225,7 +226,6 @@
     document.getElementById("progressModal").style.display = "none";
   }
 
-  // ---------- Preview ----------
   function bindPreview(inputId, imgId) {
     const input = document.getElementById(inputId);
     const img = document.getElementById(imgId);
@@ -237,7 +237,6 @@
     });
   }
 
-  // ---------- Location ----------
   function getLocation() {
     const msg = document.getElementById("locMsg");
     msg.textContent = "กำลังขอพิกัด...";
@@ -263,50 +262,40 @@
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
   }
+
   function isHeicFile(file){
-  if (!file) return false;
-  const t = (file.type || "").toLowerCase();
-  const n = (file.name || "").toLowerCase();
-  return t.includes("heic") || t.includes("heif") || n.endsWith(".heic") || n.endsWith(".heif");
-}
-
-async function convertHeicToJpegFile(file){
-  // ต้องมี heic2any
-  if (typeof heic2any === "undefined") throw new Error("ไม่พบไลบรารีแปลง HEIC (heic2any)");
-
-  const out = await heic2any({
-    blob: file,
-    toType: "image/jpeg",
-    quality: 0.85
-  });
-
-  const blob = Array.isArray(out) ? out[0] : out;
-  const newName = (file.name || "image").replace(/\.(heic|heif)$/i, ".jpg");
-  return new File([blob], newName, { type: "image/jpeg" });
-}
-
-  // ---------- Image resize/compress ----------
-async function resizeImageToDataUrl(file, maxSide = 960, quality = 0.70) {
-  // ✅ ถ้าเป็น HEIC/HEIF ให้แปลงเป็น JPG ก่อน
-  if (isHeicFile(file)) {
-    showProgress(20); // กันคนคิดว่าค้าง (ปรับเลขได้)
-    file = await convertHeicToJpegFile(file);
+    if (!file) return false;
+    const t = (file.type || "").toLowerCase();
+    const n = (file.name || "").toLowerCase();
+    return t.includes("heic") || t.includes("heif") || n.endsWith(".heic") || n.endsWith(".heif");
   }
 
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-  const nw = Math.round(bitmap.width * scale);
-  const nh = Math.round(bitmap.height * scale);
+  async function convertHeicToJpegFile(file){
+    if (typeof heic2any === "undefined") throw new Error("ไม่พบไลบรารีแปลง HEIC (heic2any)");
+    const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.85 });
+    const blob = Array.isArray(out) ? out[0] : out;
+    const newName = (file.name || "image").replace(/\.(heic|heif)$/i, ".jpg");
+    return new File([blob], newName, { type: "image/jpeg" });
+  }
 
-  const canvas = document.createElement("canvas");
-  canvas.width = nw; canvas.height = nh;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(bitmap, 0, 0, nw, nh);
+  async function resizeImageToDataUrl(file, maxSide = 960, quality = 0.70) {
+    if (isHeicFile(file)) {
+      showProgress(20);
+      file = await convertHeicToJpegFile(file);
+    }
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const nw = Math.round(bitmap.width * scale);
+    const nh = Math.round(bitmap.height * scale);
 
-  return canvas.toDataURL("image/jpeg", quality);
-}
+    const canvas = document.createElement("canvas");
+    canvas.width = nw; canvas.height = nh;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(bitmap, 0, 0, nw, nh);
 
-  // ---------- Submit ----------
+    return canvas.toDataURL("image/jpeg", quality);
+  }
+
   async function submitForm() {
     const result = document.getElementById("result");
     const btn = document.getElementById("submitBtn");
@@ -325,21 +314,16 @@ async function resizeImageToDataUrl(file, maxSide = 960, quality = 0.70) {
       const lngEl = document.getElementById("lng");
 
       const img1El = document.getElementById("img1");
-      const img2El = document.getElementById("img2"); // optional
+      const img2El = document.getElementById("img2");
       const img3El = document.getElementById("img3");
 
-      const projectName = (projectEl.value || "").trim();
-      if (!projectName) {
-        btn.disabled = false;
-        focusTo(projectEl, "กรุณากรอกชื่อโครงการ/หมู่บ้าน");
-        return;
-      }
+      // ✅ เพิ่มใหม่
+      const img4El = document.getElementById("img4");
+      const img5El = document.getElementById("img5");
 
-      if (!typeEl.value) {
-        btn.disabled = false;
-        focusTo(typeEl, "กรุณาเลือกประเภททรัพย์");
-        return;
-      }
+      const projectName = (projectEl.value || "").trim();
+      if (!projectName) { btn.disabled = false; focusTo(projectEl, "กรุณากรอกชื่อโครงการ/หมู่บ้าน"); return; }
+      if (!typeEl.value) { btn.disabled = false; focusTo(typeEl, "กรุณาเลือกประเภททรัพย์"); return; }
       if (!latEl.value || !lngEl.value) {
         btn.disabled = false;
         const locBtn = document.querySelector('button.btn2');
@@ -354,16 +338,24 @@ async function resizeImageToDataUrl(file, maxSide = 960, quality = 0.70) {
       if (!f3) { btn.disabled = false; focusToFile(img3El, "กรุณาแนบรูปป้ายประกาศ"); return; }
 
       const f2 = img2El.files[0] || null;
+      const f4 = img4El.files[0] || null; // ✅ เพิ่มใหม่
+      const f5 = img5El.files[0] || null; // ✅ เพิ่มใหม่
 
       showProgress(5);
-
       showProgress(15);
-      const pFront = resizeImageToDataUrl(f1, 960, 0.70);
-      const pNotice = resizeImageToDataUrl(f3, 960, 0.70);
+
+      const pFront   = resizeImageToDataUrl(f1, 960, 0.70);
+      const pNotice  = resizeImageToDataUrl(f3, 960, 0.70);
       const pHouseNo = f2 ? resizeImageToDataUrl(f2, 960, 0.70) : Promise.resolve(null);
 
+      // ✅ เพิ่มใหม่
+      const pAdd1    = f4 ? resizeImageToDataUrl(f4, 960, 0.70) : Promise.resolve(null);
+      const pAdd2    = f5 ? resizeImageToDataUrl(f5, 960, 0.70) : Promise.resolve(null);
+
       showProgress(35);
-      const [d1, d3, d2] = await Promise.all([pFront, pNotice, pHouseNo]);
+
+      // ✅ เพิ่ม d4,d5
+      const [d1, d3, d2, d4, d5] = await Promise.all([pFront, pNotice, pHouseNo, pAdd1, pAdd2]);
 
       showProgress(75);
 
@@ -371,6 +363,8 @@ async function resizeImageToDataUrl(file, maxSide = 960, quality = 0.70) {
         { label: "front_house", dataUrl: d1 },
         ...(d2 ? [{ label: "house_no", dataUrl: d2 }] : []),
         { label: "notice_sign", dataUrl: d3 },
+        ...(d4 ? [{ label: "additional1", dataUrl: d4 }] : []), // ✅ เพิ่มใหม่
+        ...(d5 ? [{ label: "additional2", dataUrl: d5 }] : []), // ✅ เพิ่มใหม่
       ];
 
       showProgress(85);
@@ -412,7 +406,6 @@ async function resizeImageToDataUrl(file, maxSide = 960, quality = 0.70) {
     }
   }
 
-  // ---------- Modal ----------
   function showSuccessModal(message) {
     const modal = document.getElementById("successModal");
     const msgEl = document.getElementById("successMsg");
@@ -428,7 +421,6 @@ async function resizeImageToDataUrl(file, maxSide = 960, quality = 0.70) {
     }
   }
 
-  // ---------- LIFF init ----------
   async function init() {
     const whoEl = document.getElementById("who");
     try {
@@ -452,10 +444,10 @@ async function resizeImageToDataUrl(file, maxSide = 960, quality = 0.70) {
       bindPreview("img1","p1");
       bindPreview("img2","p2");
       bindPreview("img3","p3");
+      bindPreview("img4","p4"); // ✅ เพิ่มใหม่
+      bindPreview("img5","p5"); // ✅ เพิ่มใหม่
 
-      // ✅ แสดงประกาศทันทีเมื่อเปิดจาก Rich Menu
       showAnnouncement();
-
       getLocation();
 
     } catch (e) {
