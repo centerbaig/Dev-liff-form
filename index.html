@@ -54,7 +54,7 @@
 </head>
 
 <body>
-  <h2>DEV3.44ส่งข้อมูลหน้างาน</h2>
+  <h2>DEV3.56ส่งข้อมูลหน้างาน</h2>
   <div class="small">
     ระบุประเภททรัพย์ &gt; ถ่ายรูป (หน้าบ้าน + ป้ายประกาศ) &gt; ดึงพิกัด &gt; แล้วกดส่ง
   </div>
@@ -218,7 +218,13 @@
 
   function showModal(id){ document.getElementById(id).style.display = "flex"; }
   function hideModal(id){ document.getElementById(id).style.display = "none"; }
-
+  
+  function hasCamPermissionFlag_() {
+  return localStorage.getItem("cam_perm_ok") === "1";
+  }
+  function setCamPermissionFlag_() {
+  localStorage.setItem("cam_perm_ok", "1");
+  }
   function showProgress(pct){
     const modal = document.getElementById("progressModal");
     const bar = document.getElementById("progressBar");
@@ -286,7 +292,13 @@
     document.getElementById("btnRetake").disabled = true;
 
     showModal("cameraModal");
-
+    // ✅ ถ้ายังไม่เคยได้ permission มาก่อน → ขอครั้งแรก แล้วตั้ง flag
+    if (!hasCamPermissionFlag_()) {
+    // ขอแบบเบา ๆ ก่อน 1 ครั้ง (จะเด้ง prompt)
+    const testStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    testStream.getTracks().forEach(t => t.stop());
+    setCamPermissionFlag_();
+    }
     try{
       await startCamera_();
       document.getElementById("camHint").textContent = "กด “ถ่าย” เพื่อจับภาพ";
