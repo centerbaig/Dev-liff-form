@@ -21,6 +21,7 @@
     .btnPhoto{background:#111827;color:#fff;margin-top:6px}
     .btnGhost{background:#f3f4f6;color:#111827;margin-top:6px;border:1px solid #e5e7eb}
     .btnDanger{background:#b91c1c;color:#fff;margin-top:6px}
+    .btnOk{background:#16a34a;color:#fff;margin-top:6px} /* ✅ เขียว */
     .row{display:flex;gap:10px;flex-wrap:wrap}
     .row>div{flex:1;min-width:140px}
     img.preview{max-width:100%;border-radius:10px;margin-top:8px;border:1px solid #eee;display:none}
@@ -48,13 +49,13 @@
     #camVideo{width:100%;border-radius:12px;background:#000;display:block}
     #camShot{width:100%;border-radius:12px;border:1px solid #eee;display:none;margin-top:10px}
     .camHint{margin-top:8px;font-size:13px;color:#555;text-align:center}
-    .camGrid{display:flex;gap:10px;margin-top:10px}
-    .camGrid button{width:100%}
+    .camRow{display:flex;gap:10px;margin-top:10px}
+    .camRow button{width:100%}
   </style>
 </head>
 
 <body>
-  <h2>DEV3.56ส่งข้อมูลหน้างาน</h2>
+  <h2>DEV10.38ส่งข้อมูลหน้างาน</h2>
   <div class="small">
     ระบุประเภททรัพย์ &gt; ถ่ายรูป (หน้าบ้าน + ป้ายประกาศ) &gt; ดึงพิกัด &gt; แล้วกดส่ง
   </div>
@@ -121,16 +122,14 @@
   <div id="announceModal" class="modal-backdrop">
     <div class="modal">
       <h3>ประกาศ</h3>
-      <p>
-        กรุณาถ่ายรูปและส่งงานที่ “หน้าบ้าน” หลังที่ประกาศขายเท่านั้น ถ้าสถานที่ในรูปไม่ตรงกับบ้านที่ประกาศขาย จะไม่ผ่านการพิจารณาค่ะ
-      </p>
+      <p>กรุณาถ่ายรูปและส่งงานที่ “หน้าบ้าน” หลังที่ประกาศขายเท่านั้น ถ้าสถานที่ในรูปไม่ตรงกับบ้านที่ประกาศขาย จะไม่ผ่านการพิจารณาค่ะ</p>
       <div class="actions">
         <button class="btn" type="button" onclick="hideModal('announceModal')">รับทราบ</button>
       </div>
     </div>
   </div>
 
-  <!-- Camera Modal (บังคับถ่ายกล้องเท่านั้น) -->
+  <!-- Camera Modal -->
   <div id="cameraModal" class="modal-backdrop">
     <div class="modal">
       <h3 id="camTitle">ถ่ายรูป</h3>
@@ -141,12 +140,15 @@
 
       <div class="camHint" id="camHint">กำลังเปิดกล้อง...</div>
 
-      <div class="camGrid">
+      <!-- ✅ แถว 1: ถ่าย + ถ่ายใหม่ -->
+      <div class="camRow">
         <button class="btn2" type="button" id="btnCapture" onclick="captureShot()" disabled>ถ่าย</button>
-        <button class="btn" type="button" id="btnUse" onclick="useShot()" disabled>ตกลง</button>
-      </div>
-      <div class="camGrid">
         <button class="btnGhost" type="button" id="btnRetake" onclick="retakeShot()" disabled>ถ่ายใหม่</button>
+      </div>
+
+      <!-- ✅ แถว 2: ตกลง(เขียว) + ปิด -->
+      <div class="camRow">
+        <button class="btnOk" type="button" id="btnUse" onclick="useShot()" disabled>ตกลง</button>
         <button class="btnDanger" type="button" onclick="closeCamera()">ปิด</button>
       </div>
     </div>
@@ -180,74 +182,47 @@
   const BACKEND_URL = "https://script.google.com/macros/s/AKfycbxgY_zROcN1VQ1MnqVAV15El_tBN_SsIkOhvAeEEkSVkfLSvndsmlt1uOznF_Bslp7j/exec";
   const PROGRESS_TEXT = "กำลังส่งข้อมูลไปยังระบบ...";
 
-  // ✅ image settings (เหมือนเดิม)
   const MAX_SIDE = 960;
   const JPEG_QUALITY = 0.70;
 
   let profile = null;
 
-  // เก็บ dataUrl ที่ถ่ายแล้ว (ไม่มี gallery)
-  const captured = {
-    front_house: null,
-    notice_sign: null,
-    house_no: null,
-    additional1: null,
-    additional2: null
-  };
-
-  const previewEl = {
-    front_house: "p1",
-    house_no: "p2",
-    notice_sign: "p3",
-    additional1: "p4",
-    additional2: "p5"
-  };
-
-  const titleMap = {
-    front_house: "รูปหน้าบ้าน",
-    notice_sign: "รูปป้ายประกาศ",
-    house_no: "รูปบ้านเลขที่",
-    additional1: "รูปเพิ่มเติม 1",
-    additional2: "รูปเพิ่มเติม 2"
-  };
+  // เก็บ dataUrl ที่ถ่ายแล้ว
+  const captured = { front_house:null, notice_sign:null, house_no:null, additional1:null, additional2:null };
+  const previewEl = { front_house:"p1", house_no:"p2", notice_sign:"p3", additional1:"p4", additional2:"p5" };
+  const titleMap = { front_house:"รูปหน้าบ้าน", notice_sign:"รูปป้ายประกาศ", house_no:"รูปบ้านเลขที่", additional1:"รูปเพิ่มเติม 1", additional2:"รูปเพิ่มเติม 2" };
 
   // camera state
   let currentSlot = null;
-  let stream = null;
+  let stream = null;        // ✅ เก็บ stream ไว้ตลอดรอบการเปิดฟอร์ม
   let shotDataUrl = null;
 
-  function showModal(id){ document.getElementById(id).style.display = "flex"; }
-  function hideModal(id){ document.getElementById(id).style.display = "none"; }
-  
-  function hasCamPermissionFlag_() {
-  return localStorage.getItem("cam_perm_ok") === "1";
-  }
-  function setCamPermissionFlag_() {
-  localStorage.setItem("cam_perm_ok", "1");
-  }
+  function showModal(id){ document.getElementById(id).style.display="flex"; }
+  function hideModal(id){ document.getElementById(id).style.display="none"; }
+
   function showProgress(pct){
-    const modal = document.getElementById("progressModal");
-    const bar = document.getElementById("progressBar");
-    const p = document.getElementById("progressPct");
-    const t = document.getElementById("progressText");
-    modal.style.display = "flex";
-    t.textContent = PROGRESS_TEXT;
-    bar.value = Math.max(0, Math.min(100, pct));
-    p.textContent = `${Math.round(bar.value)}%`;
+    const modal=document.getElementById("progressModal");
+    const bar=document.getElementById("progressBar");
+    const p=document.getElementById("progressPct");
+    const t=document.getElementById("progressText");
+    modal.style.display="flex";
+    t.textContent=PROGRESS_TEXT;
+    bar.value=Math.max(0,Math.min(100,pct));
+    p.textContent=`${Math.round(bar.value)}%`;
   }
   function hideProgress(){ hideModal("progressModal"); }
 
-  function focusTo(el, msg){
+  function focusTo(el,msg){
     if(!el) return;
-    el.scrollIntoView({behavior:"smooth", block:"center"});
-    setTimeout(()=>{ try{el.focus({preventScroll:true})}catch(e){ try{el.focus()}catch(_){}} }, 200);
-    const prev = el.style.borderColor;
+    el.scrollIntoView({behavior:"smooth",block:"center"});
+    setTimeout(()=>{ try{el.focus({preventScroll:true})}catch(e){ try{el.focus()}catch(_){}} },200);
+    const prev=el.style.borderColor;
     el.style.borderColor="#b91c1c";
     el.style.boxShadow="0 0 0 3px rgba(185,28,28,.15)";
-    setTimeout(()=>{ el.style.borderColor=prev||"#ccc"; el.style.boxShadow=""; }, 1800);
+    setTimeout(()=>{ el.style.borderColor=prev||"#ccc"; el.style.boxShadow=""; },1800);
     if(msg){
       const result=document.getElementById("result");
-      if(result) result.innerHTML = `<span class="err">${msg}</span>`;
+      if(result) result.innerHTML=`<span class="err">${msg}</span>`;
     }
   }
 
@@ -275,48 +250,46 @@
     );
   }
 
-  // ---------- Camera forced ----------
+  // ---------- Camera (เด้ง permission ครั้งเดียวต่อการเปิดฟอร์ม) ----------
   async function openCamera(slot){
     currentSlot = slot;
     shotDataUrl = null;
 
-    // reset UI
     document.getElementById("camTitle").textContent = "ถ่าย" + (titleMap[slot] || "รูป");
     document.getElementById("camHint").textContent = "กำลังเปิดกล้อง...";
-    document.getElementById("camShot").style.display = "none";
-    document.getElementById("camShot").src = "";
-    document.getElementById("camVideo").style.display = "block";
 
-    document.getElementById("btnCapture").disabled = true;
-    document.getElementById("btnUse").disabled = true;
-    document.getElementById("btnRetake").disabled = true;
+    // reset UI
+    document.getElementById("camShot").style.display="none";
+    document.getElementById("camShot").src="";
+    document.getElementById("camVideo").style.display="block";
+
+    document.getElementById("btnCapture").disabled=true;
+    document.getElementById("btnUse").disabled=true;
+    document.getElementById("btnRetake").disabled=true;
 
     showModal("cameraModal");
-    // ✅ ถ้ายังไม่เคยได้ permission มาก่อน → ขอครั้งแรก แล้วตั้ง flag
-    if (!hasCamPermissionFlag_()) {
-    // ขอแบบเบา ๆ ก่อน 1 ครั้ง (จะเด้ง prompt)
-    const testStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-    testStream.getTracks().forEach(t => t.stop());
-    setCamPermissionFlag_();
-    }
+
     try{
-      await startCamera_();
-      document.getElementById("camHint").textContent = "กด “ถ่าย” เพื่อจับภาพ";
-      document.getElementById("btnCapture").disabled = false;
+      if(!stream){
+        await startCamera_(); // ✅ ขอ permission แค่ครั้งแรก
+      }else{
+        // ✅ ใช้ stream เดิม ไม่ขอ permission ใหม่
+        const video=document.getElementById("camVideo");
+        video.srcObject = stream;
+        await video.play();
+      }
+      document.getElementById("camHint").textContent="กด “ถ่าย” เพื่อจับภาพ";
+      document.getElementById("btnCapture").disabled=false;
     }catch(e){
       document.getElementById("camHint").innerHTML =
-        `<span class="err">เปิดกล้องไม่สำเร็จ: ${escapeHtml_(e.message||e)}<br>
-        แนะนำ: ให้ LINE อนุญาต Camera / อัปเดต LINE / เปิดจาก Rich Menu เท่านั้น</span>`;
+        `<span class="err">เปิดกล้องไม่สำเร็จ: ${escapeHtml_(e.message||e)}<br>แนะนำ: อนุญาต Camera ให้ LINE / เปิดจาก Rich Menu</span>`;
     }
   }
 
   async function startCamera_(){
-    stopCamera_();
-
+    // ไม่ stop กล้องในแต่ละช่อง (กันเด้ง permission)
     const video = document.getElementById("camVideo");
-    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      throw new Error("ไม่รองรับกล้องใน WebView นี้");
-    }
+    if(!navigator.mediaDevices?.getUserMedia) throw new Error("ไม่รองรับกล้องใน WebView นี้");
 
     video.muted = true;
     video.setAttribute("playsinline","");
@@ -328,14 +301,12 @@
       { audio:false, video:true }
     ];
 
-    let lastErr = null;
+    let lastErr=null;
     for(const c of tryList){
       try{
         stream = await navigator.mediaDevices.getUserMedia(c);
         break;
-      }catch(err){
-        lastErr = err;
-      }
+      }catch(err){ lastErr=err; }
     }
     if(!stream) throw lastErr || new Error("ไม่สามารถเปิดกล้องได้");
 
@@ -343,113 +314,104 @@
     await video.play();
   }
 
-  function stopCamera_(){
-    const video = document.getElementById("camVideo");
-    try { video.pause(); } catch(e) {}
-    try { video.srcObject = null; } catch(e) {}
-    if(stream){
-      stream.getTracks().forEach(t=>{ try{t.stop()}catch(e){} });
-      stream = null;
-    }
-  }
-
   function closeCamera(){
-    stopCamera_();
+    // ✅ ไม่ stop stream เพื่อไม่ให้ permission เด้งทุกครั้ง
     hideModal("cameraModal");
   }
 
+  function stopCameraHard_(){
+    const video=document.getElementById("camVideo");
+    try{ video.pause(); }catch(e){}
+    try{ video.srcObject=null; }catch(e){}
+    if(stream){
+      stream.getTracks().forEach(t=>{ try{t.stop()}catch(e){} });
+      stream=null;
+    }
+  }
+
   function captureShot(){
-    const video = document.getElementById("camVideo");
-    if(!video || video.videoWidth === 0 || video.videoHeight === 0){
-      document.getElementById("camHint").innerHTML = `<span class="err">กล้องยังไม่พร้อม ลองใหม่อีกครั้ง</span>`;
+    const video=document.getElementById("camVideo");
+    if(!video || video.videoWidth===0 || video.videoHeight===0){
+      document.getElementById("camHint").innerHTML=`<span class="err">กล้องยังไม่พร้อม ลองใหม่อีกครั้ง</span>`;
       return;
     }
 
-    const canvas = document.getElementById("camCanvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    const canvas=document.getElementById("camCanvas");
+    canvas.width=video.videoWidth;
+    canvas.height=video.videoHeight;
+    const ctx=canvas.getContext("2d");
+    ctx.drawImage(video,0,0);
 
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0);
+    shotDataUrl = resizeCanvasToJpeg_(canvas, MAX_SIDE, JPEG_QUALITY);
 
-    shotDataUrl = resizeCanvasToJpegDataUrl_(canvas, MAX_SIDE, JPEG_QUALITY);
+    document.getElementById("camShot").src = shotDataUrl;
+    document.getElementById("camShot").style.display="block";
+    document.getElementById("camVideo").style.display="none";
 
-    // show shot
-    const img = document.getElementById("camShot");
-    img.src = shotDataUrl;
-    img.style.display = "block";
-    document.getElementById("camVideo").style.display = "none";
-
-    document.getElementById("camHint").textContent = "ตรวจสอบภาพ แล้วกด “ตกลง” หรือ “ถ่ายใหม่”";
-    document.getElementById("btnCapture").disabled = true;
-    document.getElementById("btnUse").disabled = false;
-    document.getElementById("btnRetake").disabled = false;
+    document.getElementById("camHint").textContent="ตรวจสอบภาพ แล้วกด “ตกลง” หรือ “ถ่ายใหม่”";
+    document.getElementById("btnCapture").disabled=true;
+    document.getElementById("btnUse").disabled=false;
+    document.getElementById("btnRetake").disabled=false;
   }
 
   function retakeShot(){
-    shotDataUrl = null;
-    document.getElementById("camShot").src = "";
-    document.getElementById("camShot").style.display = "none";
-    document.getElementById("camVideo").style.display = "block";
+    shotDataUrl=null;
+    document.getElementById("camShot").src="";
+    document.getElementById("camShot").style.display="none";
+    document.getElementById("camVideo").style.display="block";
 
-    document.getElementById("camHint").textContent = "กด “ถ่าย” เพื่อจับภาพ";
-    document.getElementById("btnCapture").disabled = false;
-    document.getElementById("btnUse").disabled = true;
-    document.getElementById("btnRetake").disabled = true;
+    document.getElementById("camHint").textContent="กด “ถ่าย” เพื่อจับภาพ";
+    document.getElementById("btnCapture").disabled=false;
+    document.getElementById("btnUse").disabled=true;
+    document.getElementById("btnRetake").disabled=true;
   }
 
   function useShot(){
     if(!currentSlot || !shotDataUrl) return;
 
-    // store
-    captured[currentSlot] = shotDataUrl;
+    captured[currentSlot]=shotDataUrl;
 
-    // preview
-    const pid = previewEl[currentSlot];
-    const p = document.getElementById(pid);
-    p.src = shotDataUrl;
-    p.style.display = "block";
+    const pid=previewEl[currentSlot];
+    const img=document.getElementById(pid);
+    img.src=shotDataUrl;
+    img.style.display="block";
 
-    // close
     closeCamera();
   }
 
-  function resizeCanvasToJpegDataUrl_(srcCanvas, maxSide, quality){
-    const w = srcCanvas.width, h = srcCanvas.height;
-    const scale = Math.min(1, maxSide / Math.max(w,h));
-    const nw = Math.round(w * scale);
-    const nh = Math.round(h * scale);
-
-    const out = document.createElement("canvas");
-    out.width = nw; out.height = nh;
-    out.getContext("2d").drawImage(srcCanvas, 0, 0, nw, nh);
-
+  function resizeCanvasToJpeg_(srcCanvas, maxSide, quality){
+    const w=srcCanvas.width, h=srcCanvas.height;
+    const scale=Math.min(1, maxSide/Math.max(w,h));
+    const nw=Math.round(w*scale), nh=Math.round(h*scale);
+    const out=document.createElement("canvas");
+    out.width=nw; out.height=nh;
+    out.getContext("2d").drawImage(srcCanvas,0,0,nw,nh);
     return out.toDataURL("image/jpeg", quality);
   }
 
   function escapeHtml_(s){
-    return String(s||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    return String(s||"").replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
   }
 
   // ---------- Submit ----------
   async function submitForm(){
-    const result = document.getElementById("result");
-    const btn = document.getElementById("submitBtn");
-    result.textContent = "";
-    btn.disabled = true;
+    const result=document.getElementById("result");
+    const btn=document.getElementById("submitBtn");
+    result.textContent="";
+    btn.disabled=true;
 
     try{
-      if(!profile || !profile.userId){
-        btn.disabled = false;
+      if(!profile?.userId){
+        btn.disabled=false;
         throw new Error("ยังดึงโปรไฟล์ LINE ไม่สำเร็จ กรุณาปิดแล้วเปิดจาก Rich Menu อีกครั้ง");
       }
 
-      const projectEl = document.getElementById("projectName");
-      const typeEl = document.getElementById("assetType");
-      const latEl = document.getElementById("lat");
-      const lngEl = document.getElementById("lng");
+      const projectEl=document.getElementById("projectName");
+      const typeEl=document.getElementById("assetType");
+      const latEl=document.getElementById("lat");
+      const lngEl=document.getElementById("lng");
 
-      const projectName = (projectEl.value || "").trim();
+      const projectName=(projectEl.value||"").trim();
       if(!projectName){ btn.disabled=false; focusTo(projectEl,"กรุณากรอกชื่อโครงการ/หมู่บ้าน"); return; }
       if(!typeEl.value){ btn.disabled=false; focusTo(typeEl,"กรุณาเลือกประเภททรัพย์"); return; }
       if(!latEl.value || !lngEl.value){
@@ -459,7 +421,6 @@
         return;
       }
 
-      // required photos
       if(!captured.front_house){ btn.disabled=false; focusTo(document.getElementById("btn_front"),"กรุณาถ่ายรูปหน้าบ้าน"); return; }
       if(!captured.notice_sign){ btn.disabled=false; focusTo(document.getElementById("btn_notice"),"กรุณาถ่ายรูปป้ายประกาศ"); return; }
 
@@ -474,27 +435,22 @@
         ...(captured.additional2 ? [{ label:"additional2", dataUrl: captured.additional2 }] : []),
       ];
 
-      // 85% = เตรียม payload
       showProgress(85);
 
       const payload = {
         projectName,
-        houseText: (document.getElementById("houseText").value || "").trim(),
-        assetType: typeEl.value,
-        latitude: Number(latEl.value),
-        longitude: Number(lngEl.value),
-        lineUserId: profile.userId,
-        lineDisplayName: profile.displayName || "",
+        houseText:(document.getElementById("houseText").value||"").trim(),
+        assetType:typeEl.value,
+        latitude:Number(latEl.value),
+        longitude:Number(lngEl.value),
+        lineUserId:profile.userId,
+        lineDisplayName:profile.displayName||"",
         images
       };
 
-      // 90% = ส่งจริง
       showProgress(90);
 
-      const res = await fetch(BACKEND_URL, {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
+      const res = await fetch(BACKEND_URL, { method:"POST", body: JSON.stringify(payload) });
 
       showProgress(95);
 
@@ -504,40 +460,50 @@
       showProgress(100);
       setTimeout(()=>{
         hideProgress();
-        document.getElementById("successMsg").textContent = "ระบบบันทึกข้อมูลเรียบร้อยแล้ว กดตกลงเพื่อปิดหน้าจอ";
         showModal("successModal");
         btn.disabled=false;
-      }, 350);
+        // ✅ ส่งสำเร็จค่อย stop กล้องจริง
+        stopCameraHard_();
+      },350);
 
     }catch(e){
       hideProgress();
-      result.innerHTML = `<span class="err">${e.message || e}</span>`;
-      btn.disabled = false;
+      result.innerHTML=`<span class="err">${e.message||e}</span>`;
+      btn.disabled=false;
     }
   }
 
   function closeLiff(){
-    stopCamera_();
-    if(typeof liff !== "undefined" && liff.isInClient && liff.isInClient()){
+    // ✅ ออกจากหน้าให้ stop กล้องจริง
+    stopCameraHard_();
+    if(typeof liff!=="undefined" && liff.isInClient && liff.isInClient()){
       liff.closeWindow();
     }else{
       window.close();
     }
   }
 
-  // ---------- LIFF init (คงแบบเดิมที่เสถียร) ----------
+  // กันหลุดไป background แล้วกล้องค้าง
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.hidden){
+      // ไม่จำเป็นต้อง stop ทุกครั้ง แต่กันค้างในบางรุ่น
+      // stopCameraHard_();
+    }
+  });
+
+  // ---------- LIFF init ----------
   async function init(){
-    const whoEl = document.getElementById("who");
+    const whoEl=document.getElementById("who");
     try{
-      whoEl.textContent = "กำลังเริ่ม LIFF...";
+      whoEl.textContent="กำลังเริ่ม LIFF...";
       await liff.init({ liffId: LIFF_ID });
 
       if(!liff.isInClient()){
-        whoEl.innerHTML = `<span class="err">ลิงก์นี้ต้องเปิดใน LINE เท่านั้น</span>`;
+        whoEl.innerHTML=`<span class="err">ลิงก์นี้ต้องเปิดใน LINE เท่านั้น</span>`;
         return;
       }
       if(!liff.isLoggedIn()){
-        whoEl.textContent = "กำลังเข้าสู่ระบบ LINE...";
+        whoEl.textContent="กำลังเข้าสู่ระบบ LINE...";
         liff.login();
         return;
       }
@@ -550,16 +516,10 @@
       getLocation();
 
     }catch(e){
-      whoEl.innerHTML = `<span class="err">LIFF error: ${escapeHtml_(e.message||e)}</span>`;
+      whoEl.innerHTML=`<span class="err">LIFF error: ${escapeHtml_(e.message||e)}</span>`;
       console.error(e);
     }
   }
-
-  // ถ้า user ปิดหน้ากล้อง/ย้ายแอพ ให้หยุดกล้อง
-  document.addEventListener("visibilitychange", ()=>{
-    if(document.hidden) stopCamera_();
-  });
-
   init();
 </script>
 </body>
