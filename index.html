@@ -55,7 +55,7 @@
 </head>
 
 <body>
-  <h2>DEV4.33ส่งข้อมูลหน้างาน</h2>
+  <h2>DEV11.17ส่งข้อมูลหน้างาน</h2>
   <div class="small">
     ระบุประเภททรัพย์ &gt; ถ่ายรูป (หน้าบ้าน + ป้ายประกาศ) &gt; ดึงพิกัด &gt; แล้วกดส่ง
   </div>
@@ -455,10 +455,10 @@
       showProgress(90);
 
       const res = await fetch(BACKEND_URL, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify(payload)
+      method: "POST",
+      body: JSON.stringify(payload)  // ✅ ไม่มี headers
       });
+
 
       showProgress(95);
 
