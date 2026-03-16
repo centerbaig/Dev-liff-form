@@ -55,9 +55,9 @@
 </head>
 
 <body>
-  <h2>DEV16.38ส่งข้อมูลหน้างาน</h2>
+  <h2>DEV4.41ส่งข้อมูลหน้างาน</h2>
   <div class="small">
-    ระบุประเภททรัพย์ &gt; ถ่ายรูป (หน้าบ้าน + ป้ายประกาศ) &gt; ดึงพิกัด &gt; แล้วกดส่ง
+    ระบุประเภททรัพย์ &gt; ถ่ายรูป (หน้าบ้าน + บ้านเลขที่ + ป้ายประกาศ) &gt; ดึงพิกัด &gt; แล้วกดส่ง
   </div>
 
   <div class="card">
@@ -69,8 +69,15 @@
     <label>ชื่อโครงการ/หมู่บ้าน <span class="err">*</span></label>
     <input id="projectName" placeholder="เช่น 'โครงการABC' ถ้าไม่มีให้ระบุ 'ไม่มี'" />
 
-    <label>บ้านเลขที่ (ไม่บังคับ)</label>
-    <input id="houseText" placeholder="เช่น 223/1" />
+    <label>บ้านเลขที่ <span class="err">*</span></label>
+    <input
+      id="houseText"
+      placeholder="เช่น 223/1"
+      inputmode="numeric"
+      maxlength="12"
+      pattern="^[0-9\/]{1,12}$"
+      autocomplete="off"
+    />
 
     <label>ประเภททรัพย์ <span class="err">*</span></label>
     <select id="assetType">
@@ -98,13 +105,13 @@
     <button class="btnPhoto" type="button" id="btn_front" onclick="openCamera('front_house')">ถ่ายรูปหน้าบ้าน</button>
     <img id="p1" class="preview" />
 
+    <label>2) รูปบ้านเลขที่ <span class="err">*</span></label>
+    <button class="btnPhoto" type="button" id="btn_house" onclick="openCamera('house_no')">ถ่ายรูปบ้านเลขที่</button>
+    <img id="p2" class="preview" />
+
     <label>3) รูปป้ายประกาศ <span class="err">*</span></label>
     <button class="btnPhoto" type="button" id="btn_notice" onclick="openCamera('notice_sign')">ถ่ายรูปป้ายประกาศ</button>
     <img id="p3" class="preview" />
-
-    <label>2) รูปบ้านเลขที่ (ไม่บังคับ)</label>
-    <button class="btnPhoto" type="button" id="btn_house" onclick="openCamera('house_no')">ถ่ายรูปบ้านเลขที่</button>
-    <img id="p2" class="preview" />
 
     <label>4) รูปเพิ่มเติม 1 (ไม่บังคับ)</label>
     <button class="btnPhoto" type="button" id="btn_add1" onclick="openCamera('additional1')">ถ่ายรูปเพิ่มเติม 1</button>
@@ -186,14 +193,12 @@
 
   let profile = null;
 
-  // เก็บ dataUrl ที่ถ่ายแล้ว
   const captured = { front_house:null, notice_sign:null, house_no:null, additional1:null, additional2:null };
   const previewEl = { front_house:"p1", house_no:"p2", notice_sign:"p3", additional1:"p4", additional2:"p5" };
   const titleMap = { front_house:"รูปหน้าบ้าน", notice_sign:"รูปป้ายประกาศ", house_no:"รูปบ้านเลขที่", additional1:"รูปเพิ่มเติม 1", additional2:"รูปเพิ่มเติม 2" };
 
-  // camera state
   let currentSlot = null;
-  let stream = null;        // เก็บ stream ไว้ตลอดรอบการเปิดฟอร์ม
+  let stream = null;
   let shotDataUrl = null;
 
   function showModal(id){ document.getElementById(id).style.display="flex"; }
@@ -223,6 +228,28 @@
       const result=document.getElementById("result");
       if(result) result.innerHTML=`<span class="err">${msg}</span>`;
     }
+  }
+
+  // ===== House number lock (only 0-9 and /, max 12) =====
+  function sanitizeHouseText_(v){
+    return String(v||"").replace(/[^0-9\/]/g,"").slice(0,12);
+  }
+  function lockHouseInput_(){
+    const el = document.getElementById("houseText");
+    if(!el) return;
+
+    el.addEventListener("input", () => {
+      const next = sanitizeHouseText_(el.value);
+      if (el.value !== next) el.value = next;
+    });
+
+    el.addEventListener("paste", (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData("text") || "";
+      const next = sanitizeHouseText_(text);
+      try { document.execCommand("insertText", false, next); }
+      catch (_) { el.value = next; }
+    });
   }
 
   function getLocation(){
@@ -257,7 +284,6 @@
     document.getElementById("camTitle").textContent = "ถ่าย" + (titleMap[slot] || "รูป");
     document.getElementById("camHint").textContent = "กำลังเปิดกล้อง...";
 
-    // reset UI
     document.getElementById("camShot").style.display="none";
     document.getElementById("camShot").src="";
     document.getElementById("camVideo").style.display="block";
@@ -270,7 +296,7 @@
 
     try{
       if(!stream){
-        await startCamera_(); // ขอ permission แค่ครั้งแรก
+        await startCamera_();
       }else{
         const video=document.getElementById("camVideo");
         video.srcObject = stream;
@@ -310,10 +336,7 @@
     await video.play();
   }
 
-  function closeCamera(){
-    // ไม่ stop stream เพื่อไม่ให้ permission เด้งทุกครั้ง
-    hideModal("cameraModal");
-  }
+  function closeCamera(){ hideModal("cameraModal"); }
 
   function stopCameraHard_(){
     const video=document.getElementById("camVideo");
@@ -335,8 +358,7 @@
     const canvas=document.getElementById("camCanvas");
     canvas.width=video.videoWidth;
     canvas.height=video.videoHeight;
-    const ctx=canvas.getContext("2d");
-    ctx.drawImage(video,0,0);
+    canvas.getContext("2d").drawImage(video,0,0);
 
     shotDataUrl = resizeCanvasToJpeg_(canvas, MAX_SIDE, JPEG_QUALITY);
 
@@ -403,12 +425,22 @@
       }
 
       const projectEl=document.getElementById("projectName");
+      const houseEl=document.getElementById("houseText");
       const typeEl=document.getElementById("assetType");
       const latEl=document.getElementById("lat");
       const lngEl=document.getElementById("lng");
 
       const projectName=(projectEl.value||"").trim();
       if(!projectName){ btn.disabled=false; focusTo(projectEl,"กรุณากรอกชื่อโครงการ/หมู่บ้าน"); return; }
+
+      const houseText=sanitizeHouseText_((houseEl.value||"").trim());
+      if(!houseText){ btn.disabled=false; focusTo(houseEl,"กรุณากรอกบ้านเลขที่"); return; }
+      if(!/^[0-9\/]{1,12}$/.test(houseText)){
+        btn.disabled=false;
+        focusTo(houseEl,"บ้านเลขที่ต้องเป็นตัวเลขและ / เท่านั้น และไม่เกิน 12 ตัว");
+        return;
+      }
+
       if(!typeEl.value){ btn.disabled=false; focusTo(typeEl,"กรุณาเลือกประเภททรัพย์"); return; }
       if(!latEl.value || !lngEl.value){
         btn.disabled=false;
@@ -418,13 +450,14 @@
       }
 
       if(!captured.front_house){ btn.disabled=false; focusTo(document.getElementById("btn_front"),"กรุณาถ่ายรูปหน้าบ้าน"); return; }
+      if(!captured.house_no){ btn.disabled=false; focusTo(document.getElementById("btn_house"),"กรุณาถ่ายรูปบ้านเลขที่"); return; }
       if(!captured.notice_sign){ btn.disabled=false; focusTo(document.getElementById("btn_notice"),"กรุณาถ่ายรูปป้ายประกาศ"); return; }
 
       showProgress(5);
 
       const images = [
         { label:"front_house", dataUrl: captured.front_house },
-        ...(captured.house_no ? [{ label:"house_no", dataUrl: captured.house_no }] : []),
+        { label:"house_no", dataUrl: captured.house_no },  // ✅ บังคับ
         { label:"notice_sign", dataUrl: captured.notice_sign },
         ...(captured.additional1 ? [{ label:"additional1", dataUrl: captured.additional1 }] : []),
         ...(captured.additional2 ? [{ label:"additional2", dataUrl: captured.additional2 }] : []),
@@ -432,33 +465,26 @@
 
       showProgress(75);
 
-      // ✅ ส่ง accessToken ไปด้วย เพื่อให้ backend verify ทีหลัง
       const accessToken = (typeof liff !== "undefined" && liff.getAccessToken) ? liff.getAccessToken() : "";
 
       const payload = {
         projectName,
-        houseText:(document.getElementById("houseText").value||"").trim(),
+        houseText,
         assetType:typeEl.value,
         latitude:Number(latEl.value),
         longitude:Number(lngEl.value),
-
-        // backward compatible (backend ควร ignore แล้วใช้ข้อมูลจริงหลัง verify)
         lineUserId:profile.userId,
         lineDisplayName:profile.displayName||"",
-
-        // ✅ ตัวสำคัญสำหรับความปลอดภัย
         accessToken,
-
         images
       };
 
       showProgress(90);
 
       const res = await fetch(BACKEND_URL, {
-      method: "POST",
-      body: JSON.stringify(payload)  // ✅ ไม่มี headers
+        method: "POST",
+        body: JSON.stringify(payload) // ✅ simple request
       });
-
 
       showProgress(95);
 
@@ -491,7 +517,6 @@
 
   document.addEventListener("visibilitychange", ()=>{
     if(document.hidden){
-      // กันค้างในบางรุ่น (ถ้าจะเปิดใช้ ให้ uncomment)
       // stopCameraHard_();
     }
   });
@@ -517,6 +542,7 @@
       whoEl.textContent = profile.displayName || "(ไม่มีชื่อ)";
       document.getElementById("uid").textContent = profile.userId || "";
 
+      lockHouseInput_();     // ✅ ล็อกการพิมพ์บ้านเลขที่
       showModal("announceModal");
       getLocation();
 
