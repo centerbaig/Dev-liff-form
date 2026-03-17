@@ -28,7 +28,6 @@
     .ok{color:green;font-weight:700}
     .err{color:#b91c1c;font-weight:700}
 
-    /* Modal */
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:9999}
     .modal{width:min(560px,100%);background:#fff;border-radius:16px;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
     .modal h3{margin:0 0 6px;font-size:18px;text-align:center}
@@ -36,7 +35,6 @@
     .modal .actions{display:flex;gap:10px}
     .modal .actions button{width:100%}
 
-    /* Progress */
     .progress-backdrop{position:fixed; inset:0;background:rgba(0,0,0,.35);display:none;align-items:flex-end;justify-content:center;padding:16px;z-index:10000}
     .progress-sheet{width:min(520px,100%);background:#fff;border-radius:16px;padding:14px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
     .progress-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
@@ -45,7 +43,6 @@
     progress{width:100%;height:14px}
     .progress-sub{margin-top:8px;font-size:13px;color:#555}
 
-    /* Camera UI */
     #camVideo{width:100%;border-radius:12px;background:#000;display:block}
     #camShot{width:100%;border-radius:12px;border:1px solid #eee;display:none;margin-top:10px}
     .camHint{margin-top:8px;font-size:13px;color:#555;text-align:center}
@@ -55,7 +52,7 @@
 </head>
 
 <body>
-  <h2>DEV4.41ส่งข้อมูลหน้างาน</h2>
+  <h2>DEV4.42ส่งข้อมูลหน้างาน</h2>
   <div class="small">
     ระบุประเภททรัพย์ &gt; ถ่ายรูป (หน้าบ้าน + บ้านเลขที่ + ป้ายประกาศ) &gt; ดึงพิกัด &gt; แล้วกดส่ง
   </div>
@@ -72,11 +69,16 @@
     <label>บ้านเลขที่ <span class="err">*</span></label>
     <input
       id="houseText"
+      type="text"
       placeholder="เช่น 223/1"
-      inputmode="numeric"
+      inputmode="text"
       maxlength="12"
-      pattern="^[0-9\/]{1,12}$"
+      pattern="^[0-9/]{1,12}$"
       autocomplete="off"
+      autocapitalize="off"
+      autocorrect="off"
+      spellcheck="false"
+      enterkeyhint="done"
     />
 
     <label>ประเภททรัพย์ <span class="err">*</span></label>
@@ -125,7 +127,6 @@
     <div id="result" class="small"></div>
   </div>
 
-  <!-- Announcement -->
   <div id="announceModal" class="modal-backdrop">
     <div class="modal">
       <h3>ประกาศ</h3>
@@ -136,7 +137,6 @@
     </div>
   </div>
 
-  <!-- Camera Modal -->
   <div id="cameraModal" class="modal-backdrop">
     <div class="modal">
       <h3 id="camTitle">ถ่ายรูป</h3>
@@ -159,7 +159,6 @@
     </div>
   </div>
 
-  <!-- Success -->
   <div id="successModal" class="modal-backdrop">
     <div class="modal">
       <h3>ส่งข้อมูลสำเร็จ</h3>
@@ -170,7 +169,6 @@
     </div>
   </div>
 
-  <!-- Progress -->
   <div id="progressModal" class="progress-backdrop">
     <div class="progress-sheet">
       <div class="progress-top">
@@ -183,7 +181,6 @@
   </div>
 
 <script>
-  // ====== Config ======
   const LIFF_ID = "2009207164-DXVXIiBg";
   const BACKEND_URL = "https://script.google.com/macros/s/AKfycbxgY_zROcN1VQ1MnqVAV15El_tBN_SsIkOhvAeEEkSVkfLSvndsmlt1uOznF_Bslp7j/exec";
   const PROGRESS_TEXT = "กำลังส่งข้อมูลไปยังระบบ...";
@@ -214,41 +211,74 @@
     bar.value=Math.max(0,Math.min(100,pct));
     p.textContent=`${Math.round(bar.value)}%`;
   }
-  function hideProgress(){ hideModal("progressModal"); }
+
+  function hideProgress(){
+    hideModal("progressModal");
+  }
 
   function focusTo(el,msg){
     if(!el) return;
     el.scrollIntoView({behavior:"smooth",block:"center"});
-    setTimeout(()=>{ try{el.focus({preventScroll:true})}catch(e){ try{el.focus()}catch(_){}} },200);
+    setTimeout(()=>{
+      try{ el.focus({preventScroll:true}); }
+      catch(e){ try{ el.focus(); }catch(_){} }
+    },200);
+
     const prev=el.style.borderColor;
     el.style.borderColor="#b91c1c";
     el.style.boxShadow="0 0 0 3px rgba(185,28,28,.15)";
-    setTimeout(()=>{ el.style.borderColor=prev||"#ccc"; el.style.boxShadow=""; },1800);
+    setTimeout(()=>{
+      el.style.borderColor=prev||"#ccc";
+      el.style.boxShadow="";
+    },1800);
+
     if(msg){
       const result=document.getElementById("result");
       if(result) result.innerHTML=`<span class="err">${msg}</span>`;
     }
   }
 
-  // ===== House number lock (only 0-9 and /, max 12) =====
   function sanitizeHouseText_(v){
-    return String(v||"").replace(/[^0-9\/]/g,"").slice(0,12);
+    return String(v || "").replace(/[^0-9/]/g, "").slice(0,12);
   }
+
+  function insertAtCursor_(el, text){
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const next = el.value.slice(0, start) + text + el.value.slice(end);
+    el.value = sanitizeHouseText_(next);
+    const pos = Math.min(start + text.length, el.value.length);
+    try{ el.setSelectionRange(pos, pos); }catch(_){}
+  }
+
   function lockHouseInput_(){
     const el = document.getElementById("houseText");
     if(!el) return;
 
     el.addEventListener("input", () => {
       const next = sanitizeHouseText_(el.value);
-      if (el.value !== next) el.value = next;
+      if(el.value !== next) el.value = next;
+    });
+
+    el.addEventListener("beforeinput", (e) => {
+      if(e.inputType && e.inputType.startsWith("delete")) return;
+      if(typeof e.data !== "string") return;
+      const cleaned = sanitizeHouseText_(e.data);
+      if(e.data !== cleaned){
+        e.preventDefault();
+        if(cleaned) insertAtCursor_(el, cleaned);
+      }
     });
 
     el.addEventListener("paste", (e) => {
       e.preventDefault();
       const text = (e.clipboardData || window.clipboardData).getData("text") || "";
-      const next = sanitizeHouseText_(text);
-      try { document.execCommand("insertText", false, next); }
-      catch (_) { el.value = next; }
+      const cleaned = sanitizeHouseText_(text);
+      insertAtCursor_(el, cleaned);
+    });
+
+    el.addEventListener("blur", () => {
+      el.value = sanitizeHouseText_(el.value);
     });
   }
 
@@ -276,7 +306,6 @@
     );
   }
 
-  // ---------- Camera ----------
   async function openCamera(slot){
     currentSlot = slot;
     shotDataUrl = null;
@@ -328,7 +357,9 @@
       try{
         stream = await navigator.mediaDevices.getUserMedia(c);
         break;
-      }catch(err){ lastErr=err; }
+      }catch(err){
+        lastErr=err;
+      }
     }
     if(!stream) throw lastErr || new Error("ไม่สามารถเปิดกล้องได้");
 
@@ -336,14 +367,18 @@
     await video.play();
   }
 
-  function closeCamera(){ hideModal("cameraModal"); }
+  function closeCamera(){
+    hideModal("cameraModal");
+  }
 
   function stopCameraHard_(){
     const video=document.getElementById("camVideo");
     try{ video.pause(); }catch(e){}
     try{ video.srcObject=null; }catch(e){}
     if(stream){
-      stream.getTracks().forEach(t=>{ try{t.stop()}catch(e){} });
+      stream.getTracks().forEach(t=>{
+        try{ t.stop(); }catch(e){}
+      });
       stream=null;
     }
   }
@@ -402,7 +437,8 @@
     const scale=Math.min(1, maxSide/Math.max(w,h));
     const nw=Math.round(w*scale), nh=Math.round(h*scale);
     const out=document.createElement("canvas");
-    out.width=nw; out.height=nh;
+    out.width=nw;
+    out.height=nh;
     out.getContext("2d").drawImage(srcCanvas,0,0,nw,nh);
     return out.toDataURL("image/jpeg", quality);
   }
@@ -411,7 +447,6 @@
     return String(s||"").replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
   }
 
-  // ---------- Submit ----------
   async function submitForm(){
     const result=document.getElementById("result");
     const btn=document.getElementById("submitBtn");
@@ -431,17 +466,33 @@
       const lngEl=document.getElementById("lng");
 
       const projectName=(projectEl.value||"").trim();
-      if(!projectName){ btn.disabled=false; focusTo(projectEl,"กรุณากรอกชื่อโครงการ/หมู่บ้าน"); return; }
+      if(!projectName){
+        btn.disabled=false;
+        focusTo(projectEl,"กรุณากรอกชื่อโครงการ/หมู่บ้าน");
+        return;
+      }
 
       const houseText=sanitizeHouseText_((houseEl.value||"").trim());
-      if(!houseText){ btn.disabled=false; focusTo(houseEl,"กรุณากรอกบ้านเลขที่"); return; }
-      if(!/^[0-9\/]{1,12}$/.test(houseText)){
+      houseEl.value = houseText;
+
+      if(!houseText){
+        btn.disabled=false;
+        focusTo(houseEl,"กรุณากรอกบ้านเลขที่");
+        return;
+      }
+
+      if(!/^[0-9/]{1,12}$/.test(houseText)){
         btn.disabled=false;
         focusTo(houseEl,"บ้านเลขที่ต้องเป็นตัวเลขและ / เท่านั้น และไม่เกิน 12 ตัว");
         return;
       }
 
-      if(!typeEl.value){ btn.disabled=false; focusTo(typeEl,"กรุณาเลือกประเภททรัพย์"); return; }
+      if(!typeEl.value){
+        btn.disabled=false;
+        focusTo(typeEl,"กรุณาเลือกประเภททรัพย์");
+        return;
+      }
+
       if(!latEl.value || !lngEl.value){
         btn.disabled=false;
         const locBtn=document.querySelector("button.btn2");
@@ -449,15 +500,29 @@
         return;
       }
 
-      if(!captured.front_house){ btn.disabled=false; focusTo(document.getElementById("btn_front"),"กรุณาถ่ายรูปหน้าบ้าน"); return; }
-      if(!captured.house_no){ btn.disabled=false; focusTo(document.getElementById("btn_house"),"กรุณาถ่ายรูปบ้านเลขที่"); return; }
-      if(!captured.notice_sign){ btn.disabled=false; focusTo(document.getElementById("btn_notice"),"กรุณาถ่ายรูปป้ายประกาศ"); return; }
+      if(!captured.front_house){
+        btn.disabled=false;
+        focusTo(document.getElementById("btn_front"),"กรุณาถ่ายรูปหน้าบ้าน");
+        return;
+      }
+
+      if(!captured.house_no){
+        btn.disabled=false;
+        focusTo(document.getElementById("btn_house"),"กรุณาถ่ายรูปบ้านเลขที่");
+        return;
+      }
+
+      if(!captured.notice_sign){
+        btn.disabled=false;
+        focusTo(document.getElementById("btn_notice"),"กรุณาถ่ายรูปป้ายประกาศ");
+        return;
+      }
 
       showProgress(5);
 
       const images = [
         { label:"front_house", dataUrl: captured.front_house },
-        { label:"house_no", dataUrl: captured.house_no },  // ✅ บังคับ
+        { label:"house_no", dataUrl: captured.house_no },
         { label:"notice_sign", dataUrl: captured.notice_sign },
         ...(captured.additional1 ? [{ label:"additional1", dataUrl: captured.additional1 }] : []),
         ...(captured.additional2 ? [{ label:"additional2", dataUrl: captured.additional2 }] : []),
@@ -483,7 +548,7 @@
 
       const res = await fetch(BACKEND_URL, {
         method: "POST",
-        body: JSON.stringify(payload) // ✅ simple request
+        body: JSON.stringify(payload)
       });
 
       showProgress(95);
@@ -521,9 +586,10 @@
     }
   });
 
-  // ---------- LIFF init ----------
   async function init(){
     const whoEl=document.getElementById("who");
+    lockHouseInput_();
+
     try{
       whoEl.textContent="กำลังเริ่ม LIFF...";
       await liff.init({ liffId: LIFF_ID });
@@ -532,6 +598,7 @@
         whoEl.innerHTML=`<span class="err">ลิงก์นี้ต้องเปิดใน LINE เท่านั้น</span>`;
         return;
       }
+
       if(!liff.isLoggedIn()){
         whoEl.textContent="กำลังเข้าสู่ระบบ LINE...";
         liff.login();
@@ -542,7 +609,6 @@
       whoEl.textContent = profile.displayName || "(ไม่มีชื่อ)";
       document.getElementById("uid").textContent = profile.userId || "";
 
-      lockHouseInput_();     // ✅ ล็อกการพิมพ์บ้านเลขที่
       showModal("announceModal");
       getLocation();
 
@@ -551,6 +617,7 @@
       console.error(e);
     }
   }
+
   init();
 </script>
 </body>
