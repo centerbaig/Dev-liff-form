@@ -48,64 +48,11 @@
     .camHint{margin-top:8px;font-size:13px;color:#555;text-align:center}
     .camRow{display:flex;gap:10px;margin-top:10px}
     .camRow button{width:100%}
-
-    .zoomWrap{
-      margin-top:10px;
-      padding:10px;
-      border:1px solid #e5e7eb;
-      border-radius:12px;
-      background:#f9fafb;
-    }
-    .zoomTop{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:10px;
-      margin-bottom:8px;
-    }
-    .zoomLabel{
-      font-size:14px;
-      font-weight:700;
-      color:#111827;
-    }
-    .zoomValue{
-      font-size:13px;
-      color:#374151;
-      min-width:48px;
-      text-align:right;
-    }
-    .zoomControls{
-      display:flex;
-      align-items:center;
-      gap:8px;
-    }
-    .zoomBtn{
-      width:52px;
-      min-width:52px;
-      padding:10px 0;
-      border-radius:10px;
-      background:#111827;
-      color:#fff;
-      border:none;
-      font-size:18px;
-      line-height:1;
-    }
-    .zoomRange{
-      flex:1;
-      width:100%;
-      accent-color:#0b57d0;
-    }
-    .zoomNote{
-      margin-top:6px;
-      font-size:12px;
-      color:#6b7280;
-      text-align:center;
-    }
   </style>
 </head>
 
 <body>
-  <h2>DEV1.38ส่งข้อมูลหน้างาน</h2>
+  <h2>DEV11.03ส่งข้อมูลหน้างาน</h2>
   <div class="small">
     ระบุประเภททรัพย์ &gt; ถ่ายรูป (หน้าบ้าน + บ้านเลขที่ + ป้ายประกาศ) &gt; ดึงพิกัด &gt; แล้วกดส่ง
   </div>
@@ -198,21 +145,6 @@
       <img id="camShot" />
       <canvas id="camCanvas" style="display:none"></canvas>
 
-      <div class="zoomWrap" id="zoomWrap" style="display:none;">
-        <div class="zoomTop">
-          <div class="zoomLabel">ซูมกล้อง</div>
-          <div class="zoomValue" id="zoomValue">1.0x</div>
-        </div>
-
-        <div class="zoomControls">
-          <button class="zoomBtn" type="button" id="zoomOutBtn" onclick="zoomOut_()">−</button>
-          <input class="zoomRange" id="zoomRange" type="range" min="1" max="1" step="0.1" value="1" />
-          <button class="zoomBtn" type="button" id="zoomInBtn" onclick="zoomIn_()">+</button>
-        </div>
-
-        <div class="zoomNote" id="zoomNote">กำลังตรวจสอบความสามารถซูมของกล้อง...</div>
-      </div>
-
       <div class="camHint" id="camHint">กำลังเปิดกล้อง...</div>
 
       <div class="camRow">
@@ -265,15 +197,6 @@
   let currentSlot = null;
   let stream = null;
   let shotDataUrl = null;
-
-  const zoomState = {
-    supported: false,
-    track: null,
-    min: 1,
-    max: 1,
-    step: 0.1,
-    current: 1
-  };
 
   function showModal(id){ document.getElementById(id).style.display="flex"; }
   function hideModal(id){ document.getElementById(id).style.display="none"; }
@@ -398,7 +321,6 @@
     document.getElementById("btnUse").disabled=true;
     document.getElementById("btnRetake").disabled=true;
 
-    resetZoomUi_();
     showModal("cameraModal");
 
     try{
@@ -409,9 +331,6 @@
         video.srcObject = stream;
         await video.play();
       }
-
-      await initZoomControls_();
-
       document.getElementById("camHint").textContent="กด “ถ่าย” เพื่อจับภาพ";
       document.getElementById("btnCapture").disabled=false;
     }catch(e){
@@ -429,7 +348,7 @@
 
     const tryList = [
       { audio:false, video:{ facingMode:{ exact:"environment" } } },
-      { audio:false, video:{ facingMode:{ ideal:"environment" }, width:{ ideal:1920 }, height:{ ideal:1080 } } },
+      { audio:false, video:{ facingMode:{ ideal:"environment" } } },
       { audio:false, video:true }
     ];
 
@@ -462,13 +381,6 @@
       });
       stream=null;
     }
-    zoomState.supported = false;
-    zoomState.track = null;
-    zoomState.min = 1;
-    zoomState.max = 1;
-    zoomState.step = 0.1;
-    zoomState.current = 1;
-    resetZoomUi_();
   }
 
   function captureShot(){
@@ -488,7 +400,6 @@
     document.getElementById("camShot").src = shotDataUrl;
     document.getElementById("camShot").style.display="block";
     document.getElementById("camVideo").style.display="none";
-    document.getElementById("zoomWrap").style.display="none";
 
     document.getElementById("camHint").textContent="ตรวจสอบภาพ แล้วกด “ตกลง” หรือ “ถ่ายใหม่”";
     document.getElementById("btnCapture").disabled=true;
@@ -496,13 +407,11 @@
     document.getElementById("btnRetake").disabled=false;
   }
 
-  async function retakeShot(){
+  function retakeShot(){
     shotDataUrl=null;
     document.getElementById("camShot").src="";
     document.getElementById("camShot").style.display="none";
     document.getElementById("camVideo").style.display="block";
-
-    await initZoomControls_();
 
     document.getElementById("camHint").textContent="กด “ถ่าย” เพื่อจับภาพ";
     document.getElementById("btnCapture").disabled=false;
@@ -536,130 +445,6 @@
 
   function escapeHtml_(s){
     return String(s||"").replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-  }
-
-  function resetZoomUi_(){
-    const wrap = document.getElementById("zoomWrap");
-    const range = document.getElementById("zoomRange");
-    const value = document.getElementById("zoomValue");
-    const note = document.getElementById("zoomNote");
-    const btnIn = document.getElementById("zoomInBtn");
-    const btnOut = document.getElementById("zoomOutBtn");
-
-    wrap.style.display = "none";
-    range.min = "1";
-    range.max = "1";
-    range.step = "0.1";
-    range.value = "1";
-    value.textContent = "1.0x";
-    note.textContent = "กำลังตรวจสอบความสามารถซูมของกล้อง...";
-    range.disabled = true;
-    btnIn.disabled = true;
-    btnOut.disabled = true;
-  }
-
-  async function initZoomControls_(){
-    const wrap = document.getElementById("zoomWrap");
-    const range = document.getElementById("zoomRange");
-    const value = document.getElementById("zoomValue");
-    const note = document.getElementById("zoomNote");
-    const btnIn = document.getElementById("zoomInBtn");
-    const btnOut = document.getElementById("zoomOutBtn");
-
-    resetZoomUi_();
-
-    try{
-      const videoTrack = stream?.getVideoTracks?.()[0];
-      if(!videoTrack){
-        note.textContent = "ไม่พบ video track";
-        wrap.style.display = "block";
-        return;
-      }
-
-      zoomState.track = videoTrack;
-
-      const caps = typeof videoTrack.getCapabilities === "function" ? videoTrack.getCapabilities() : null;
-      const settings = typeof videoTrack.getSettings === "function" ? videoTrack.getSettings() : null;
-
-      if(!caps || !caps.zoom){
-        zoomState.supported = false;
-        wrap.style.display = "block";
-        note.textContent = "อุปกรณ์นี้ไม่รองรับการซูมผ่านเว็บกล้อง";
-        return;
-      }
-
-      zoomState.supported = true;
-      zoomState.min = Number(caps.zoom.min ?? 1);
-      zoomState.max = Number(caps.zoom.max ?? 1);
-      zoomState.step = Number(caps.zoom.step ?? 0.1);
-      zoomState.current = Number(settings?.zoom ?? zoomState.min);
-
-      if(!isFinite(zoomState.current)) zoomState.current = zoomState.min;
-      if(!isFinite(zoomState.min)) zoomState.min = 1;
-      if(!isFinite(zoomState.max)) zoomState.max = Math.max(zoomState.min, 1);
-      if(!isFinite(zoomState.step) || zoomState.step <= 0) zoomState.step = 0.1;
-
-      range.min = String(zoomState.min);
-      range.max = String(zoomState.max);
-      range.step = String(zoomState.step);
-      range.value = String(zoomState.current);
-      value.textContent = `${Number(zoomState.current).toFixed(1)}x`;
-
-      range.disabled = false;
-      btnIn.disabled = false;
-      btnOut.disabled = false;
-      wrap.style.display = "block";
-      note.textContent = "เลื่อนแถบหรือกด - / + เพื่อซูม";
-
-      range.oninput = async (e) => {
-        const next = Number(e.target.value);
-        await applyZoom_(next);
-      };
-
-      await applyZoom_(zoomState.current);
-    }catch(err){
-      wrap.style.display = "block";
-      note.textContent = "ไม่สามารถเปิดระบบซูมได้ แต่ยังถ่ายรูปได้ตามปกติ";
-    }
-  }
-
-  async function applyZoom_(value){
-    const range = document.getElementById("zoomRange");
-    const valueEl = document.getElementById("zoomValue");
-    const note = document.getElementById("zoomNote");
-
-    if(!zoomState.supported || !zoomState.track){
-      note.textContent = "อุปกรณ์นี้ไม่รองรับการซูมผ่านเว็บกล้อง";
-      return;
-    }
-
-    let next = Number(value);
-    next = Math.max(zoomState.min, Math.min(zoomState.max, next));
-
-    try{
-      await zoomState.track.applyConstraints({
-        advanced: [{ zoom: next }]
-      });
-
-      zoomState.current = next;
-      range.value = String(next);
-      valueEl.textContent = `${Number(next).toFixed(1)}x`;
-      note.textContent = "กำลังใช้การซูมของกล้อง";
-    }catch(err){
-      note.textContent = "อุปกรณ์นี้ไม่ยอมรับคำสั่งซูมจากเว็บ";
-    }
-  }
-
-  function zoomIn_(){
-    if(!zoomState.supported) return;
-    const next = Number(zoomState.current) + Number(zoomState.step || 0.1);
-    applyZoom_(next);
-  }
-
-  function zoomOut_(){
-    if(!zoomState.supported) return;
-    const next = Number(zoomState.current) - Number(zoomState.step || 0.1);
-    applyZoom_(next);
   }
 
   async function submitForm(){
