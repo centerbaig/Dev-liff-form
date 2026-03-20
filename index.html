@@ -52,7 +52,7 @@
 </head>
 
 <body>
-  <h2>DEV 11.52ส่งข้อมูลหน้างาน</h2>
+  <h2>ส่งข้อมูลหน้างาน</h2>
   <div class="small">
     ระบุประเภททรัพย์ &gt; ถ่ายรูป (หน้าบ้าน + บ้านเลขที่ + ป้ายประกาศ) &gt; ดึงพิกัด &gt; แล้วกดส่ง
   </div>
@@ -90,11 +90,11 @@
     <div class="row">
       <div>
         <label>ละติจูด</label>
-        <input id="lat" readonly placeholder="ยังไม่ได้ดึงพิกัด" />
+        <input id="lat" readonly placeholder="จะดึงตอนถ่ายรูปหน้าบ้าน" />
       </div>
       <div>
         <label>ลองจิจูด</label>
-        <input id="lng" readonly placeholder="ยังไม่ได้ดึงพิกัด" />
+        <input id="lng" readonly placeholder="จะดึงตอนถ่ายรูปหน้าบ้าน" />
       </div>
     </div>
 
@@ -201,6 +201,7 @@
   let currentSlot = null;
   let stream = null;
   let shotDataUrl = null;
+  let frontHouseLocationPromise = null;
 
   function showModal(id){ document.getElementById(id).style.display="flex"; }
   function hideModal(id){ document.getElementById(id).style.display="none"; }
@@ -327,18 +328,21 @@
   }
 
   async function openFrontHouseCamera(){
-    try{
-      const btnFront = document.getElementById("btn_front");
-      btnFront.disabled = true;
-      document.getElementById("locMsg").textContent = "กำลังดึงพิกัดก่อนเปิดกล้องหน้าบ้าน...";
+    const btnFront = document.getElementById("btn_front");
+    const locMsg = document.getElementById("locMsg");
 
-      await getLocationAsync_();
+    try{
+      btnFront.disabled = true;
+      locMsg.textContent = "กำลังเปิดกล้องและดึงพิกัดพร้อมกัน...";
+
+      frontHouseLocationPromise = getLocationAsync_().catch((e) => {
+        console.warn("Location error:", e);
+        return null;
+      });
+
       await openCamera('front_house');
-    }catch(e){
-      const locBtn=document.getElementById("btnGetLocation");
-      focusTo(locBtn, e.message || "กรุณาอนุญาตตำแหน่งก่อนถ่ายรูปหน้าบ้าน");
-    }finally{
-      document.getElementById("btn_front").disabled = false;
+    } finally {
+      btnFront.disabled = false;
     }
   }
 
@@ -455,17 +459,25 @@
     document.getElementById("btnRetake").disabled=true;
   }
 
-  function useShot(){
+  async function useShot(){
     if(!currentSlot || !shotDataUrl) return;
 
-    captured[currentSlot]=shotDataUrl;
+    const slot = currentSlot;
+    captured[slot] = shotDataUrl;
 
-    const pid=previewEl[currentSlot];
-    const img=document.getElementById(pid);
-    img.src=shotDataUrl;
-    img.style.display="block";
+    const pid = previewEl[slot];
+    const img = document.getElementById(pid);
+    img.src = shotDataUrl;
+    img.style.display = "block";
 
     closeCamera();
+
+    if(slot === "front_house"){
+      const locMsg = document.getElementById("locMsg");
+      if(!document.getElementById("lat").value || !document.getElementById("lng").value){
+        locMsg.innerHTML = `<span class="small">ถ่ายรูปหน้าบ้านแล้ว ระบบกำลังดึงพิกัดต่อในพื้นหลัง...</span>`;
+      }
+    }
   }
 
   function resizeCanvasToJpeg_(srcCanvas, maxSide, quality){
@@ -529,17 +541,26 @@
         return;
       }
 
-      if(!latEl.value || !lngEl.value){
-        btn.disabled=false;
-        const locBtn=document.getElementById("btnGetLocation");
-        focusTo(locBtn||latEl,"กรุณาถ่ายรูปหน้าบ้านก่อน หรือกดดึงพิกัดอีกครั้ง");
-        return;
-      }
-
       if(!captured.front_house){
         btn.disabled=false;
         focusTo(document.getElementById("btn_front"),"กรุณาถ่ายรูปหน้าบ้าน");
         return;
+      }
+
+      if(!latEl.value || !lngEl.value){
+        if(captured.front_house && frontHouseLocationPromise){
+          try{
+            document.getElementById("locMsg").textContent = "กำลังรอพิกัดล่าสุด...";
+            await frontHouseLocationPromise;
+          }catch(e){}
+        }
+
+        if(!latEl.value || !lngEl.value){
+          btn.disabled=false;
+          const locBtn=document.getElementById("btnGetLocation");
+          focusTo(locBtn||latEl,"ยังไม่ได้พิกัด กรุณากดดึงพิกัดอีกครั้ง");
+          return;
+        }
       }
 
       if(!captured.house_no){
