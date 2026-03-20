@@ -90,21 +90,21 @@
     <div class="row">
       <div>
         <label>ละติจูด</label>
-        <input id="lat" readonly placeholder="กำลังดึงพิกัด..." />
+        <input id="lat" readonly placeholder="ยังไม่ได้ดึงพิกัด" />
       </div>
       <div>
         <label>ลองจิจูด</label>
-        <input id="lng" readonly placeholder="กำลังดึงพิกัด..." />
+        <input id="lng" readonly placeholder="ยังไม่ได้ดึงพิกัด" />
       </div>
     </div>
 
-    <button class="btn2" type="button" onclick="getLocation()">ดึงพิกัดอีกครั้ง</button>
+    <button class="btn2" type="button" id="btnGetLocation" onclick="getLocation()">ดึงพิกัดอีกครั้ง</button>
     <div class="small" id="locMsg"></div>
   </div>
 
   <div class="card">
     <label>1) รูปหน้าบ้าน <span class="err">*</span></label>
-    <button class="btnPhoto" type="button" id="btn_front" onclick="openCamera('front_house')">ถ่ายรูปหน้าบ้าน</button>
+    <button class="btnPhoto" type="button" id="btn_front" onclick="openFrontHouseCamera()">ถ่ายรูปหน้าบ้าน</button>
     <img id="p1" class="preview" />
 
     <label>2) รูปบ้านเลขที่ <span class="err">*</span></label>
@@ -129,7 +129,6 @@
 
   <div id="announceModal" class="modal-backdrop">
     <div class="modal">
-
       <h3>ประกาศ</h3>
       <ol style="margin:0; padding-left:20px; color:#444; line-height:1.6;">
         <li>ส่งงานจากหน้าบ้านที่ประกาศขายเท่านั้น</li>
@@ -288,27 +287,59 @@
   }
 
   function getLocation(){
+    return getLocationAsync_();
+  }
+
+  function getLocationAsync_(){
     const msg=document.getElementById("locMsg");
     msg.textContent="กำลังขอพิกัด...";
-    if(!navigator.geolocation){
-      msg.innerHTML=`<span class="err">อุปกรณ์/บราวเซอร์ไม่รองรับการดึงพิกัด</span>`;
-      return;
+
+    return new Promise((resolve, reject) => {
+      if(!navigator.geolocation){
+        const errorMsg="อุปกรณ์/บราวเซอร์ไม่รองรับการดึงพิกัด";
+        msg.innerHTML=`<span class="err">${errorMsg}</span>`;
+        reject(new Error(errorMsg));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos)=>{
+          document.getElementById("lat").value=pos.coords.latitude;
+          document.getElementById("lng").value=pos.coords.longitude;
+          msg.innerHTML=`<span class="ok">ได้พิกัดแล้ว</span>`;
+          resolve({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude
+          });
+        },
+        (err)=>{
+          let extra="";
+          if(err.code===1) extra=" (ไม่ได้อนุญาต Location ให้ LINE/เว็บนี้)";
+          if(err.code===2) extra=" (หาสัญญาณ GPS ไม่เจอ ลองออกไปที่โล่ง/เปิด GPS)";
+          if(err.code===3) extra=" (Timeout ลองใหม่อีกครั้ง)";
+          const text = `ดึงพิกัดไม่สำเร็จ: ${err.message}${extra}`;
+          msg.innerHTML=`<span class="err">${text}</span>`;
+          reject(new Error(text));
+        },
+        {enableHighAccuracy:true,timeout:20000,maximumAge:0}
+      );
+    });
+  }
+
+  async function openFrontHouseCamera(){
+    try{
+      const btnFront = document.getElementById("btn_front");
+      btnFront.disabled = true;
+      document.getElementById("locMsg").textContent = "กำลังดึงพิกัดก่อนเปิดกล้องหน้าบ้าน...";
+
+      await getLocationAsync_();
+      await openCamera('front_house');
+    }catch(e){
+      const locBtn=document.getElementById("btnGetLocation");
+      focusTo(locBtn, e.message || "กรุณาอนุญาตตำแหน่งก่อนถ่ายรูปหน้าบ้าน");
+    }finally{
+      document.getElementById("btn_front").disabled = false;
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos)=>{
-        document.getElementById("lat").value=pos.coords.latitude;
-        document.getElementById("lng").value=pos.coords.longitude;
-        msg.innerHTML=`<span class="ok">ได้พิกัดแล้ว</span>`;
-      },
-      (err)=>{
-        let extra="";
-        if(err.code===1) extra=" (ไม่ได้อนุญาต Location ให้ LINE/เว็บนี้)";
-        if(err.code===2) extra=" (หาสัญญาณ GPS ไม่เจอ ลองออกไปที่โล่ง/เปิด GPS)";
-        if(err.code===3) extra=" (Timeout ลองใหม่อีกครั้ง)";
-        msg.innerHTML=`<span class="err">ดึงพิกัดไม่สำเร็จ: ${err.message}${extra}</span>`;
-      },
-      {enableHighAccuracy:true,timeout:20000,maximumAge:0}
-    );
   }
 
   async function openCamera(slot){
@@ -500,8 +531,8 @@
 
       if(!latEl.value || !lngEl.value){
         btn.disabled=false;
-        const locBtn=document.querySelector("button.btn2");
-        focusTo(locBtn||latEl,"กรุณาดึงพิกัดก่อน (หรือรอให้ดึงอัตโนมัติสำเร็จ)");
+        const locBtn=document.getElementById("btnGetLocation");
+        focusTo(locBtn||latEl,"กรุณาถ่ายรูปหน้าบ้านก่อน หรือกดดึงพิกัดอีกครั้ง");
         return;
       }
 
@@ -615,8 +646,6 @@
       document.getElementById("uid").textContent = profile.userId || "";
 
       showModal("announceModal");
-      getLocation();
-
     }catch(e){
       whoEl.innerHTML=`<span class="err">LIFF error: ${escapeHtml_(e.message||e)}</span>`;
       console.error(e);
